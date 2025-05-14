@@ -1,35 +1,48 @@
-// /api/create_preference.js
-import mercadopago from "mercadopago";
+import express from "express";
+import cors from "cors";
+import { MercadoPagoConfig, Preference } from "mercadopago";
 
-mercadopago.configurations.setAccessToken(
-  process.env.MERCADOPAGO_ACCESS_TOKEN ||
-  "APP_USR-375933332453913-050510-26cb21928990307e53e112051139331b-2413217239"
-);
+// Es recomendable usar variables de entorno para el token
+const client = new MercadoPagoConfig({
+  accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN || 'APP_USR-375933332453913-050510-26cb21928990307e53e112051139331b-2413217239
+'
+});
 
-export default async function handler(req, res) {
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+app.get("/", (req, res) => {
+  res.send("Soy el server :)");
+});
+
+app.post("/create_preference", async (req, res) => {
   try {
-    if (req.method !== "POST") {
-      return res.status(405).json({ error: "Método no permitido" });
-    }
-    const { items } = req.body;
-    if (!Array.isArray(items) || items.length === 0) {
-      return res
-        .status(400)
-        .json({ error: "Debes enviar un array 'items' con al menos un elemento" });
-    }
-
-    const preference = await mercadopago.preferences.create({
-      items,
+    const body = {
+      items: [{
+        title: req.body.title,
+        quantity: Number(req.body.quantity),
+        unit_price: Number(req.body.price),
+        currency_id: "COP"
+      }],
       back_urls: {
-        success: "https://tudominio.com/success",
-        failure: "https://tudominio.com/failure",
-        pending: "https://tudominio.com/pending"
+        success: "https://polizasonline.online/sura/",
+        failure: "https://polizasonline.online/sura/",
+        pending: "https://polizasonline.online/sura/"
       },
       auto_return: "approved"
-    });
-    return res.status(200).json({ id: preference.body.id });
+    };
+
+    const preference = new Preference(client);
+    const result = await preference.create({ body });
+
+    res.json({ id: result.id });
   } catch (error) {
-    console.error("Error creando preferencia:", error);
-    return res.status(500).json({ error: "Error interno al crear la preferencia" });
+    console.error(error);
+    res.status(500).json({ error: "Error al crear la preferencia :(" });
   }
-}
+});
+
+
+export default app;
