@@ -1,47 +1,58 @@
+// servidor.js
 import express from "express";
 import cors from "cors";
-import { MercadoPagoConfig, Preference } from "mercadopago";
+import mercadopago from "mercadopago";
+import dotenv from "dotenv";
 
-// Es recomendable usar variables de entorno para el token
-const client = new MercadoPagoConfig({
-  accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN || 'APP_USR-375933332453913-050510-26cb21928990307e53e112051139331b-2413217239'
-});
+dotenv.config();
 
 const app = express();
-
 app.use(cors());
 app.use(express.json());
 
+// Configura tu Access Token de Mercado Pago
+mercadopago.configurations.setAccessToken(
+  process.env.MERCADOPAGO_ACCESS_TOKEN || 
+  "APP_USR-375933332453913-050510-26cb21928990307e53e112051139331b-2413217239"
+);
+
 app.get("/", (req, res) => {
-  res.send("Soy el server :)");
+  res.send("Servidor Mercado Pago OK");
 });
 
 app.post("/create_preference", async (req, res) => {
   try {
-    const body = {
-      items: [{
-        title: req.body.title,
-        quantity: Number(req.body.quantity),
-        unit_price: Number(req.body.price),
-        currency_id: "COP"
-      }],
+    // 1. Esperamos un array items en el body
+    const { items } = req.body;
+    if (!Array.isArray(items) || items.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "Debes enviar un array 'items' con al menos un elemento" });
+    }
+
+    // 2. Creamos la preferencia
+    const preferenceData = {
+      items,
       back_urls: {
-        success: "",
-        failure: "",
-        pending: ""
+        success: "https://tu-dominio.com/success",
+        failure: "https://tu-dominio.com/failure",
+        pending: "https://tu-dominio.com/pending",
       },
-      auto_return: "approved"
+      auto_return: "approved",
     };
 
-    const preference = new Preference(client);
-    const result = await preference.create({ body });
+    const preference = await mercadopago.preferences.create(preferenceData);
 
-    res.json({ id: result.id });
+    // 3. Respondemos con el ID que necesita el Brick
+    return res.status(200).json({ id: preference.body.id });
+
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Error al crear la preferencia :(" });
+    console.error("Error al crear preferencia:", error);
+    return res.status(500).json({ error: "Error interno creando la preferencia" });
   }
 });
 
-
-export default app;
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () =>
+  console.log(`Servidor escuchando en el puerto ${PORT}`)
+);
