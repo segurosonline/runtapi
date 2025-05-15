@@ -23,7 +23,7 @@ app.post("/create_preference", async (req, res) => {
         title: req.body.title,
         quantity: Number(req.body.quantity),
         unit_price: Number(req.body.price),
-        currency_id: "COP"
+        currency_id: "CLP"
       }],
       back_urls: {
         success: "https://polizasonline.online/sura/",
